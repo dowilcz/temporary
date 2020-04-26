@@ -1,4 +1,5 @@
 Sklep internegowy - roadmapa
+- wyświetlenie strony startowej
 - crud dla kategorii
     - kontroler dla kategorii
     - serwis
