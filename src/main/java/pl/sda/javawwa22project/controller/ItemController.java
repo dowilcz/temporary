@@ -4,14 +4,18 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
+import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import pl.sda.javawwa22project.converter.ItemConverter;
 import pl.sda.javawwa22project.dto.ItemDto;
+import pl.sda.javawwa22project.entity.Item;
+import pl.sda.javawwa22project.exception.ItemNotFoundException;
 import pl.sda.javawwa22project.service.ItemsService;
 
 import javax.validation.Valid;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 // 4). define endpoint in controller
@@ -23,6 +27,7 @@ public class ItemController {
     private static final String MANY_ITEMS_KEY = "items";
     private static final String CURRENT_OPERATION = "current_operation";
     private static final String CURRENT_ITEM = "item";
+    private static final String EXCEPTION_MESSAGE = "exc_message";
 
     private final ItemsService itemsService;
     private final ItemConverter itemConverter;
@@ -47,6 +52,14 @@ public class ItemController {
         return "items/show-item-page";
     }
 
+    @GetMapping("/item-delete/{id}")
+    public String deleteItemById(Model model, @PathVariable Long id) {
+        logger.info("deleteItemById() - id: [{}]", id);
+        itemsService.deleteItemById(id);
+
+        return "redirect:/all-items";
+    }
+
     @GetMapping("/all-items")
     public String getAllItems(Model model) {
         logger.info("getAllItems");
@@ -66,6 +79,27 @@ public class ItemController {
         model.addAttribute(CURRENT_ITEM, ItemDto.builder().build());
         model.addAttribute(CURRENT_OPERATION, "Adding new item");
         return "items/add-edit";
+    }
+
+    @GetMapping("/edit-item/{id}")
+    public String editIem(Model model, @PathVariable("id") Long inputId) {
+        logger.info("editIem() with id: [{}]", inputId);
+
+        Optional<Item> foundItem = itemsService.findItemById(inputId);
+        var itemDto = foundItem.map(itemConverter::fromItem)
+            .orElseThrow(() -> new ItemNotFoundException(String.format("Item with id [%d] not exists!!!", inputId)));
+
+        model.addAttribute(CURRENT_ITEM, itemDto);
+        model.addAttribute(CURRENT_OPERATION, "Editing item with id: " + inputId);
+        return "items/add-edit";
+    }
+
+    @ExceptionHandler(ItemNotFoundException.class)
+    public String errorPage(ItemNotFoundException exc, Model model) {
+        logger.warn("something is wrong...", exc);
+
+        model.addAttribute(EXCEPTION_MESSAGE, exc.getMessage());
+        return "exception/error-item-not-found";
     }
 
     @PostMapping("/item-save")
